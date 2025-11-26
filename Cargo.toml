@@ -1,0 +1,12 @@
+[package]
+name = "QueueTicket"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.8"
+shuttle-aws-rds = { version = "0.57.0", features = ["postgres"] }
+shuttle-axum = "0.57.0"
+shuttle-runtime = "0.57.0"
+sqlx = { version = "0.8.6", features = ["postgres"] }
+tokio = "1.28.2"

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>整理番号管理</title>
+    <!-- 見た目を少し整えるCSS（後で解説） -->
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+        .card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+        button { padding: 0.5rem 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>管理画面</h1>
+
+    <!-- 発券フォーム -->
+    <div class="card">
+        <h2>新規発券</h2>
+        <!-- フォーム送信先を /admin/tickets に設定 -->
+        <form action="/admin/tickets" method="post">
+            <label>
+                人数:
+                <input type="number" name="group_size" value="1" min="1" required>
+            </label>
+            <button type="submit">発券する</button>
+        </form>
+    </div>
+
+    <!-- 最新の発券情報を表示（あれば） -->
+    {% if let Some(ticket) = last_ticket %}
+    <div class="card" style="background-color: #e0f7fa;">
+        <h3>発券完了！</h3>
+        <p>整理番号: <strong>{{ ticket.number }}</strong></p>
+        <p>人数: {{ ticket.group_size }}名</p>
+        
+        <!-- QRコード表示エリア -->
+        {% if let Some(qr) = qr_code %}
+            <div style="text-align: center; margin-top: 10px;">
+                <p>↓ お客様に読み取ってもらってください ↓</p>
+                <!-- 修正点: styleで width/height を指定した div で囲む -->
+                <div style="background: white; padding: 10px; display: inline-block;">
+                    <!-- SVG自体のサイズをCSSで強制する -->
+                    <style> svg { width: 200px; height: 200px; } </style>
+                    {{ qr|safe }}
+                </div>
+                <a href="/guest/{{ ticket.id }}" target="_blank">自分（PC）で確認する</a>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <p><a href="/admin">画面を更新</a></p>
+</body>
+</html>

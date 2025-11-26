@@ -1,0 +1,26 @@
+<p>あなたの整理番号</p>
+<div class="number">{{ ticket.number }}</div>
+
+<!-- ステータスによって表示を変える -->
+{% if ticket.status == "waiting" %}
+    <div class="status status-waiting">待機中</div>
+    <div class="info">
+        <p>現在、前に <strong>{{ waiting_count }}</strong> 組待っています。</p>
+        
+        <!-- 追加: もうすぐ（あと2組以内）ならメッセージを出す -->
+        {% if waiting_count <= 2 %}
+            <p style="color: red; font-weight: bold; font-size: 1.2rem; animation: flash 1s infinite;">
+                まもなく呼び出しです！準備してお待ちください。
+            </p>
+        {% endif %}
+    </div>
+{% else if ticket.status == "called" %}
+    <div class="status status-called">呼出中！</div>
+    <p>受付までお越しください！</p>
+    <!-- 呼び出されたらバイブレーションさせる（JSが必要ですが簡易的に音や動きで表現） -->
+{% else %}
+    <div class="status status-completed">案内終了</div>
+{% endif %}
+
+<p style="margin-top:20px; font-size:0.8rem;">ID: {{ ticket.id }}</p>
+<p style="font-size: 0.7rem; color: #aaa;">自動更新中...</p>

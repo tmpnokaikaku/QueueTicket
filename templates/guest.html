@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイページ</title>
+    <!-- HTMXライブラリを読み込む -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; }
+        .ticket-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .number { font-size: 4rem; font-weight: bold; color: #333; margin: 10px 0; }
+        .status { font-size: 1.5rem; font-weight: bold; padding: 10px; border-radius: 8px; color: white; }
+        .status-waiting { background-color: #2196F3; }
+        .status-called { background-color: #FF9800; animation: flash 1s infinite; }
+        .status-completed { background-color: #9E9E9E; }
+        .info { margin-top: 20px; color: #666; }
+        @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <!-- 
+      hx-get: このURLからデータを取得する
+      hx-trigger: 5秒ごとに実行する
+      hx-swap: このdivの中身を書き換える
+    -->
+    <div class="ticket-card" 
+         hx-get="/guest/{{ ticket.id }}/content" 
+         hx-trigger="every 5s" 
+         hx-swap="innerHTML">
+        
+        <!-- 初回表示用（guest_content.htmlと同じ内容を書いておくか、include機能を使う） -->
+        <!-- ここでは簡易的にincludeを使います -->
+        {% include "guest_content.html" %}
+        
+    </div>
+</body>
+</html>

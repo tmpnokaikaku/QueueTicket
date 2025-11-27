@@ -8,12 +8,14 @@ use axum::{
 use askama::Template;
 use qrcodegen::{QrCode, QrCodeEcc};
 use serde::Deserialize;
+use shuttle_runtime::SecretStore;
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 #[derive(Clone)]
 struct AppState {
     pool: PgPool,
+    base_url: String,
 }
 
 #[derive(FromRow, Clone)]
@@ -93,11 +95,19 @@ fn to_svg_string(qr: &QrCode, border: i32) -> String {
     res
 }
 
+// main
 #[shuttle_runtime::main]
-async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
+async fn main(
+    #[shuttle_shared_db::Postgres] pool: PgPool,
+    #[shuttle_runtime::Secrets] secret_store: SecretStore
+) -> shuttle_axum::ShuttleAxum {
     sqlx::migrate!().run(&pool).await.expect("Migrations failed");
 
-    let state = AppState { pool };
+    let base_url = secret_store
+        .get("BASE_URL")
+        .unwrap_or_else(|| "http://localhost:8000".to_string());
+
+    let state = AppState { pool, base_url };
 
     let app = Router::new()
         // --- 管理者総合 ---
@@ -158,8 +168,9 @@ async fn create_ticket(
     .await
     .expect("Failed to create ticket");
 
-    // QRコード生成
-    let url = format!("http://localhost:8000/guest/{}", ticket.id); // ※本番ではドメイン書き換えが必要
+    // 修正: state.base_url を使ってURLを生成
+    let url = format!("{}/guest/{}", state.base_url, ticket.id);
+    
     let qr = QrCode::encode_text(&url, QrCodeEcc::Medium).unwrap();
     let svg = to_svg_string(&qr, 4);
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>呼び出し管理</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 0.8rem; text-align: center; }
+        th { background: #f4f4f4; }
+        .status-waiting { background: #e3f2fd; color: #1565c0; font-weight: bold; }
+        .status-called { background: #fff3e0; color: #e65100; font-weight: bold; }
+        button { cursor: pointer; padding: 0.5rem 1rem; border: none; border-radius: 4px; color: white; }
+        .btn-call { background: #FF9800; }
+        .btn-complete { background: #4CAF50; }
+    </style>
+</head>
+<body>
+    <p><a href="/admin">← メニューに戻る</a></p>
+    <h1>📢 呼び出し管理</h1>
+    <p>現在待機中または呼び出し中のチケット一覧</p>
+    <p><a href="/admin/call">🔄 リストを更新</a></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>番号</th>
+                <th>人数</th>
+                <th>状態</th>
+                <th>アクション</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ticket in tickets %}
+            <tr>
+                <td style="font-size: 1.5rem;">{{ ticket.number }}</td>
+                <td>{{ ticket.group_size }}名</td>
+                <td>
+                    {% if ticket.status == "waiting" %}
+                        <span class="status-waiting">待機中</span>
+                    {% else if ticket.status == "called" %}
+                        <span class="status-called">呼出中</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <!-- ステータス変更フォーム -->
+                    <form action="/admin/call/update" method="post" style="display:inline;">
+                        <input type="hidden" name="id" value="{{ ticket.id }}">
+                        
+                        {% if ticket.status == "waiting" %}
+                            <button type="submit" name="status" value="called" class="btn-call">呼び出す</button>
+                        {% else if ticket.status == "called" %}
+                            <button type="submit" name="status" value="completed" class="btn-complete">完了(案内済)</button>
+                        {% endif %}
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

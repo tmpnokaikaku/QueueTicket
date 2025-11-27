@@ -5,13 +5,26 @@
     <title>管理者メニュー</title>
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; text-align: center; }
-        a { display: block; margin: 1rem; padding: 1.5rem; background: #eee; text-decoration: none; color: #333; border-radius: 8px; font-weight: bold; font-size: 1.2rem; }
-        a:hover { background: #ddd; }
+        .menu-link { display: block; margin: 1rem; padding: 1.5rem; background: #eee; text-decoration: none; color: #333; border-radius: 8px; font-weight: bold; font-size: 1.2rem; }
+        .menu-link:hover { background: #ddd; }
+        
+        /* 危険な操作用のスタイル */
+        .danger-zone { margin-top: 3rem; border: 2px solid #ffcccb; padding: 1rem; border-radius: 8px; }
+        .btn-danger { background: #ff5252; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; font-size: 1rem; }
     </style>
 </head>
 <body>
     <h1>管理者メニュー</h1>
-    <a href="/admin/front">🎫 発券画面へ<br><small>（受付担当）</small></a>
-    <a href="/admin/call">📢 呼び出し管理へ<br><small>（誘導担当）</small></a>
+    <a href="/admin/front" class="menu-link">🎫 発券画面へ<br><small>（受付担当）</small></a>
+    <a href="/admin/call" class="menu-link">📢 呼び出し管理へ<br><small>（誘導担当）</small></a>
+
+    <!-- DBリセットエリア -->
+    <div class="danger-zone">
+        <h3 style="color: #d32f2f;">⚠️ 管理操作</h3>
+        <p>全ての整理番号データを削除し、番号を1番からリセットします。</p>
+        <form action="/admin/reset" method="post" onsubmit="return confirm('【警告】\n本当に全てのデータを削除しますか？\nこの操作は取り消せません。');">
+            <button type="submit" class="btn-danger">全データ削除（リセット）</button>
+        </form>
+    </div>
 </body>
 </html>

@@ -1,11 +1,13 @@
 [package]
 name = "queueticket"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 
 [dependencies]
 askama = "0.14.0"
 axum = "0.8"
+base64 = "0.22.1"
+constant_time_eq = "0.4.2"
 qrcodegen = "1.8.0"
 serde = { version = "1.0.228", features = ["derive"] }
 shuttle-aws-rds = { version = "0.57.0", features = ["postgres"] }
@@ -14,4 +16,5 @@ shuttle-runtime = "0.57.0"
 shuttle-shared-db = { version = "0.57.0", features = ["postgres", "sqlx"] }
 sqlx = { version = "0.8.6", features = ["chrono", "macros", "postgres", "runtime-tokio-native-tls", "uuid"] }
 tokio = "1.28.2"
+tower-http = { version = "0.6.7", features = ["validate-request", "auth", "util"] }
 uuid = { version = "1.18.1", features = ["v4", "serde"] }

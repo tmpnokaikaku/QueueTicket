@@ -1,0 +1,43 @@
+<!-- リストが空の場合 -->
+{% if tickets.is_empty() %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #888;">
+        <p>現在待機中のチケットはありません。</p>
+        <p>🎉</p>
+    </div>
+{% endif %}
+
+<!-- チケットカードのループ -->
+{% for ticket in tickets %}
+    <div class="ticket-card {{ ticket.status }}">
+        <div class="card-header">
+            <span class="ticket-number">No.{{ ticket.number }}</span>
+            <span class="group-size">{{ ticket.group_size }}名</span>
+        </div>
+        
+        <div class="card-status">
+            {% if ticket.status == "waiting" %}
+                待機中
+            {% else %}
+                呼出中
+            {% endif %}
+        </div>
+
+        <div class="card-actions">
+            <form action="/admin/call/update" method="post">
+                <input type="hidden" name="id" value="{{ ticket.id }}">
+                
+                {% if ticket.status == "waiting" %}
+                    <!-- 呼び出しボタン -->
+                    <button type="submit" name="status" value="called" class="btn btn-call">
+                        📢 呼び出す
+                    </button>
+                {% else if ticket.status == "called" %}
+                    <!-- 完了ボタン -->
+                    <button type="submit" name="status" value="completed" class="btn btn-complete">
+                        ✅ 完了する
+                    </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+{% endfor %}

@@ -50,6 +50,12 @@ struct CallTemplate {
 }
 
 #[derive(Template)]
+#[template(path = "call_items.html")] // 部品用
+struct CallListTemplate {
+    tickets: Vec<Ticket>,
+}
+
+#[derive(Template)]
 #[template(path = "guest.html")]
 struct GuestTemplate {
     ticket: Ticket,
@@ -143,6 +149,7 @@ async fn main(
         .route("/admin/front", get(front_page))
         .route("/admin/front/tickets", post(create_ticket))
         .route("/admin/call", get(call_page))
+        .route("/admin/call/list", get(call_list)) // 追加: 自動更新用エンドポイント
         .route("/admin/call/update", post(update_status))
         // ここで認証ミドルウェアを適用
         .route_layer(middleware::from_fn_with_state(state.clone(), auth));
@@ -269,7 +276,8 @@ async fn create_ticket(
     })
 }
 
-async fn call_page(State(state): State<AppState>) -> impl IntoResponse {
+async fn call_page(State(_state): State<AppState>) -> impl IntoResponse {
+    /* 
     let tickets = sqlx::query_as::<_, Ticket>(
         "SELECT id, number, group_size, status FROM tickets 
          WHERE status != 'completed' 
@@ -280,6 +288,22 @@ async fn call_page(State(state): State<AppState>) -> impl IntoResponse {
     .unwrap_or(vec![]);
 
     HtmlTemplate(CallTemplate { tickets })
+    */
+    HtmlTemplate(CallTemplate { tickets: vec![] }) 
+}
+
+// 追加: リストの中身だけを返すハンドラ
+async fn call_list(State(state): State<AppState>) -> impl IntoResponse {
+    let tickets = sqlx::query_as::<_, Ticket>(
+        "SELECT id, number, group_size, status FROM tickets 
+         WHERE status != 'completed' 
+         ORDER BY number ASC"
+    )
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or(vec![]);
+
+    HtmlTemplate(CallListTemplate { tickets })
 }
 
 #[derive(Deserialize)]

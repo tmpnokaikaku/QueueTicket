@@ -14,6 +14,8 @@ use shuttle_runtime::SecretStore;
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 use constant_time_eq::constant_time_eq;   // 追加
+use chrono::{DateTime, Utc, Local}; // 日付操作用
+use axum::http::header::CONTENT_TYPE; // CSV出力用
 
 #[derive(Clone)]
 struct AppState {
@@ -28,6 +30,11 @@ struct Ticket {
     number: i32,
     group_size: i32,
     status: String,
+    // created_at はDB定義にはあるがStructになかったので追加（分析に必須）
+    created_at: DateTime<Utc>, 
+    // 追加: NULLの可能性があるので Option で包む
+    called_at: Option<DateTime<Utc>>, 
+    completed_at: Option<DateTime<Utc>>, 
 }
 
 // --- テンプレート定義 ---
@@ -146,6 +153,7 @@ async fn main(
     let admin_routes = Router::new()
         .route("/admin", get(admin_index))
         .route("/admin/reset", post(reset_db))
+        .route("/admin/download_csv", get(download_csv)) // 追加: トラフィックダウンロード用
         .route("/admin/front", get(front_page))
         .route("/admin/front/tickets", post(create_ticket))
         .route("/admin/call", get(call_page))
@@ -255,10 +263,11 @@ async fn create_ticket(
         .unwrap_or(1);
     let number = if next_number > 999 { 1 } else { next_number };
 
+    // 修正: RETURNING * に変更して、すべての列（日時含む）を取得する
     let ticket = sqlx::query_as::<_, Ticket>(
         "INSERT INTO tickets (number, group_size, status) 
          VALUES ($1, $2, 'waiting') 
-         RETURNING id, number, group_size, status",
+         RETURNING *" 
     )
     .bind(number)
     .bind(form.group_size)
@@ -276,10 +285,10 @@ async fn create_ticket(
     })
 }
 
-async fn call_page(State(_state): State<AppState>) -> impl IntoResponse {
-    /* 
+async fn call_page(State(state): State<AppState>) -> impl IntoResponse {
+    // 修正: SELECT * に変更
     let tickets = sqlx::query_as::<_, Ticket>(
-        "SELECT id, number, group_size, status FROM tickets 
+        "SELECT * FROM tickets 
          WHERE status != 'completed' 
          ORDER BY number ASC"
     )
@@ -288,14 +297,13 @@ async fn call_page(State(_state): State<AppState>) -> impl IntoResponse {
     .unwrap_or(vec![]);
 
     HtmlTemplate(CallTemplate { tickets })
-    */
-    HtmlTemplate(CallTemplate { tickets: vec![] }) 
 }
 
 // 追加: リストの中身だけを返すハンドラ
 async fn call_list(State(state): State<AppState>) -> impl IntoResponse {
+    // 修正: SELECT * に変更
     let tickets = sqlx::query_as::<_, Ticket>(
-        "SELECT id, number, group_size, status FROM tickets 
+        "SELECT * FROM tickets 
          WHERE status != 'completed' 
          ORDER BY number ASC"
     )
@@ -312,27 +320,40 @@ struct UpdateStatusForm {
     status: String,
 }
 
+// update_status 関数を書き換え
 async fn update_status(
     State(state): State<AppState>,
     Form(form): Form<UpdateStatusForm>,
 ) -> impl IntoResponse {
-    sqlx::query("UPDATE tickets SET status = $1 WHERE id = $2")
-        .bind(form.status)
-        .bind(form.id)
-        .execute(&state.pool)
-        .await
-        .expect("Failed to update status");
+    // ステータスに応じて、更新するカラムを変える
+    if form.status == "called" {
+        // 呼び出し: status を変えつつ、called_at に現在時刻を入れる
+        sqlx::query("UPDATE tickets SET status = 'called', called_at = NOW() WHERE id = $1")
+            .bind(form.id)
+            .execute(&state.pool)
+            .await
+            .expect("Failed to update status to called");
+    } else if form.status == "completed" {
+        // 完了: status を変えつつ、completed_at に現在時刻を入れる
+        sqlx::query("UPDATE tickets SET status = 'completed', completed_at = NOW() WHERE id = $1")
+            .bind(form.id)
+            .execute(&state.pool)
+            .await
+            .expect("Failed to update status to completed");
+    }
 
     Redirect::to("/admin/call")
 }
 
 async fn guest_page(Path(id): Path<Uuid>, State(state): State<AppState>) -> impl IntoResponse {
-    let ticket = sqlx::query_as::<_, Ticket>("SELECT id, number, group_size, status FROM tickets WHERE id = $1")
+    // 修正: SELECT * に変更
+    let ticket = sqlx::query_as::<_, Ticket>("SELECT * FROM tickets WHERE id = $1")
         .bind(id)
         .fetch_one(&state.pool)
         .await
         .expect("Ticket not found");
 
+    // COUNT(*) は構造体にマッピングしないので、そのままでOK
     let waiting_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tickets WHERE status = 'waiting' AND number < $1")
         .bind(ticket.number)
         .fetch_one(&state.pool)
@@ -343,7 +364,8 @@ async fn guest_page(Path(id): Path<Uuid>, State(state): State<AppState>) -> impl
 }
 
 async fn guest_content(Path(id): Path<Uuid>, State(state): State<AppState>) -> impl IntoResponse {
-    let ticket = sqlx::query_as::<_, Ticket>("SELECT id, number, group_size, status FROM tickets WHERE id = $1")
+    // 修正: SELECT * に変更
+    let ticket = sqlx::query_as::<_, Ticket>("SELECT * FROM tickets WHERE id = $1")
         .bind(id)
         .fetch_one(&state.pool)
         .await
@@ -356,4 +378,49 @@ async fn guest_content(Path(id): Path<Uuid>, State(state): State<AppState>) -> i
         .unwrap_or(0);
 
     HtmlTemplate(GuestContentTemplate { ticket, waiting_count })
+}
+
+// CSVダウンロード用ハンドラ
+async fn download_csv(State(state): State<AppState>) -> impl IntoResponse {
+    // 全データを取得（番号順）
+    let tickets = sqlx::query_as::<_, Ticket>(
+        "SELECT * FROM tickets ORDER BY number ASC"
+    )
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or(vec![]);
+
+    // CSVのヘッダー行
+    let mut csv_data = String::from("整理番号,人数,ステータス,発券時刻,呼出時刻,完了時刻\n");
+
+    // データ行の生成
+    for t in tickets {
+        // 時刻を日本時間 (Local) に変換して文字列化。データがない場合は空文字。
+        let created = t.created_at.with_timezone(&Local).format("%H:%M:%S").to_string();
+        
+        let called = t.called_at
+            .map(|d| d.with_timezone(&Local).format("%H:%M:%S").to_string())
+            .unwrap_or_default();
+            
+        let completed = t.completed_at
+            .map(|d| d.with_timezone(&Local).format("%H:%M:%S").to_string())
+            .unwrap_or_default();
+
+        // 1行追加
+        use std::fmt::Write;
+        let _ = writeln!(
+            csv_data, 
+            "{},{},{},{},{},{}", 
+            t.number, t.group_size, t.status, created, called, completed
+        );
+    }
+
+    // レスポンス生成: ヘッダーをつけてファイルとしてダウンロードさせる
+    (
+        [
+            (CONTENT_TYPE, "text/csv; charset=utf-8"),
+            (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"tickets_log.csv\""),
+        ],
+        csv_data
+    )
 }

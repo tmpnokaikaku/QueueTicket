@@ -1527,11 +1527,12 @@ checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
 
 [[package]]
 name = "queueticket"
-version = "1.2.0"
+version = "1.3.1"
 dependencies = [
  "askama",
  "axum",
  "base64",
+ "chrono",
  "constant_time_eq",
  "qrcodegen",
  "serde",

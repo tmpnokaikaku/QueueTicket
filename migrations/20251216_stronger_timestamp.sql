@@ -1,0 +1,3 @@
+-- 既存のテーブルに列を追加する
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
